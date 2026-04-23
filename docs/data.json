@@ -22,5 +22,12 @@
     "f1": "93.4",
     "path": "submissions/Shivam_Nexus_Group-09/",
     "date": "2026-04-16"
-  }
+  },
+  {
+     "name": "Sahil_Pasalkar",
+    "tech": "PyTorch MLP",
+    "accuracy": "95.7",
+    "f1": "78.8",
+    "path": "submissions/Satyam_Harsha_Group-11/",
+    "date": "2026-04-23"
 ]
