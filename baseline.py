@@ -14,14 +14,14 @@ from cryptography.fernet import Fernet
 # 1. Automated Path Logic
 # ----------------------------
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-# Create the specific 'submission' folder required for the leaderboard
+# The Action expects the 'submission' folder in the repo root
 SUBMISSION_DIR = os.path.join(SCRIPT_DIR, "submission")
 os.makedirs(SUBMISSION_DIR, exist_ok=True)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # ----------------------------
-# 2. Data & Model (Keep your existing logic)
+# 2. Data & Model (Standard Logic)
 # ----------------------------
 iris = load_iris()
 X, y = iris.data, (iris.target == 1).astype(int)
@@ -76,8 +76,9 @@ df_sub.to_csv(temp_csv, index=False)
 # ----------------------------
 # 4. Encryption (final_submissions.csv.enc)
 # ----------------------------
-# Generate a key (In a real scenario, you'd store this in GitHub Secrets)
-key = Fernet.generate_key()
+# Note: Using a fixed key for leaderboard compatibility if your sir has one, 
+# otherwise Fernet.generate_key() works for demo purposes.
+key = Fernet.generate_key() 
 cipher_suite = Fernet(key)
 
 with open(temp_csv, 'rb') as f:
@@ -88,21 +89,32 @@ encrypted_data = cipher_suite.encrypt(raw_data)
 with open(os.path.join(SUBMISSION_DIR, "final_submissions.csv.enc"), 'wb') as f:
     f.write(encrypted_data)
 
-# Remove the temporary unencrypted CSV for security
 os.remove(temp_csv)
 
 # ----------------------------
-# 5. Metadata Generation (metadata.json)
+# 5. Dynamic Metadata Generation
 # ----------------------------
+# This captures the name from the GitHub Action environment variable
+submitter_name = os.getenv('SUBMITTER_NAME', 'Satyam Anilrao Shelke')
+
+# Logic to handle PRN: If it's you, use your PRN, otherwise use a placeholder
+if submitter_name == 'Satyam Anilrao Shelke' or submitter_name == 'SatyamShelke2005':
+    display_name = "Satyam Anilrao Shelke"
+    prn = "1132231165"
+else:
+    display_name = submitter_name
+    prn = "EXTERNAL_CONTRIBUTOR"
+
 metadata = {
-    "name": "Satyam Anilrao Shelke",
-    "PRN": "1132231165",
+    "name": display_name,
+    "PRN": prn,
     "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     "model_type": "PyTorch RobustMLP",
-    "status": "Success"
+    "status": "Success",
+    "submission_type": "Automated_CI_CD"
 }
 
 with open(os.path.join(SUBMISSION_DIR, "metadata.json"), 'w') as f:
     json.dump(metadata, f, indent=4)
 
-print(f"DONE: Encrypted submission and metadata generated in {SUBMISSION_DIR}")
+print(f"DONE: Metadata generated for {display_name} in {SUBMISSION_DIR}")
