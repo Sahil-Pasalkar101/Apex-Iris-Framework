@@ -4,8 +4,7 @@ __pycache__
 .DS_Store
 
 .ipynb_checkpoints/
-submissions/baseline_model.csv
-leaderboard/test_labels_hidden.csv
+
 
 .venv
 private_key.pem
