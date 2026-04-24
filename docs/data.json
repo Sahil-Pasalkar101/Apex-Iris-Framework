@@ -8,22 +8,6 @@
     "date": "2026-04-14"
   },
   {
-    "name": "Test_Submission_01",
-    "tech": "Random Forest Ensemble",
-    "accuracy": "95.6",
-    "f1": "95.1",
-    "path": "submissions/Madhuri_Jignesh_Group-04/",
-    "date": "2026-04-16"
-  },
-  {
-    "name": "Test_Submission_02",
-    "tech": "XGBoost Classifier",
-    "accuracy": "93.8",
-    "f1": "93.4",
-    "path": "submissions/Shivam_Nexus_Group-09/",
-    "date": "2026-04-16"
-  },
-  {
      "name": "Sahil_Pasalkar",
     "tech": "PyTorch MLP",
     "accuracy": "95.7",
