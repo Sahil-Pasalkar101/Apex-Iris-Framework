@@ -1,70 +1,53 @@
-name: Auto-Generate Leaderboard Submission
+name: Apex Leaderboard Automation
 
 on:
   push:
-    branches:
-      - main
-    paths-ignore:
-      - 'docs/data.json'
+    branches: [ main ]
   pull_request:
     types: [closed]
-    branches:
-      - main
 
+# 1. This block is the "Master Key" to fix the Red Cross/403 error
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   build:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    # Runs only if PR is merged or if you push directly to main
+    if: github.event.pull_request.merged == true || github.event_name == 'push'
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v3
       with:
-        fetch-depth: 0
-        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0 # Downloads history to prevent "both modified" errors
 
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.10'
+        python-version: '3.9'
 
     - name: Install Dependencies
       run: |
-        pip install torch pandas numpy cryptography scikit-learn
+        pip install torch pandas scikit-learn numpy cryptography
 
     - name: Run Processing Script
-      run: |
-        python baseline.py
       env:
+        # Detects the contributor's name automatically
         SUBMITTER_NAME: ${{ github.event.pull_request.user.login || github.actor }}
+      run: |
+        python starter_code/baseline.py
 
     - name: Commit and Push Changes
       run: |
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         
-        # 1. Track all new files created by baseline.py
-        git add .
-        
-        # 2. Temporarily hide changes to allow a clean pull
-        git stash
-        
-        # 3. Update local environment with any remote changes
+        # Pull latest changes first to avoid conflicts
         git pull origin main --rebase
         
-        # 4. Bring the leaderboard data back
-        git stash pop || echo "No changes to apply"
+        git add docs/data.json submissions/
         
-        # 5. Finalize the commit
-        git add submissions/ docs/data.json
-        if [ -n "$(git status --porcelain)" ]; then
-          git commit -m "🏆 Auto-update: $SUBMITTER_NAME [skip ci]"
-          git push origin main
-        else
-          echo "No changes to commit."
-        fi
-      env:
-        SUBMITTER_NAME: ${{ github.event.pull_request.user.login || github.actor }}
+        # Only commit if there's actually a change (prevents error if score is identical)
+        git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update: Leaderboard Sync [skip ci]" && git push origin main)
