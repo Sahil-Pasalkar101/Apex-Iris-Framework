@@ -12,5 +12,12 @@
         "Accuracy": "97.8%",
         "F1-Score": "97.8",
         "Timestamp": "2026-04-25"
+    },
+    {
+        "Participant": "Test_User_SatyamShelke2005",
+        "Architecture": "Auto-Residual-Skip-v3",
+        "Accuracy": "89.5%",
+        "F1-Score": "89.3",
+        "Timestamp": "2026-04-25"
     }
 ]

@@ -1,13 +1,8 @@
 {
-    "name": "Satyam Anilrao Shelke",
-    "PRN": "1132231165",
-<<<<<<< Updated upstream
-    "timestamp": "2026-04-25 21:48:00",
-=======
-    "timestamp": "2026-04-25 21:48:24",
->>>>>>> Stashed changes
-    "model_type": "PyTorch RobustMLP",
+    "name": "Test_User_SatyamShelke2005",
+    "PRN": "AUTOTEST_7007",
+    "timestamp": "2026-04-25 21:57:56",
+    "model_type": "Residual MLP v3",
     "status": "Success",
-    "accuracy": "97.78%",
-    "submission_type": "Automated_CI_CD"
+    "accuracy": "89.47%"
 }
