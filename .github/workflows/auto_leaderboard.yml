@@ -6,14 +6,13 @@ on:
   pull_request:
     types: [closed]
 
-# 1. This block is the "Master Key" to fix the Red Cross/403 error
+# Permissions to fix the "403 Forbidden" red cross
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
   build:
-    # Runs only if PR is merged or if you push directly to main
     if: github.event.pull_request.merged == true || github.event_name == 'push'
     runs-on: ubuntu-latest
 
@@ -21,7 +20,7 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v3
       with:
-        fetch-depth: 0 # Downloads history to prevent "both modified" errors
+        fetch-depth: 0 
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -34,20 +33,20 @@ jobs:
 
     - name: Run Processing Script
       env:
-        # Detects the contributor's name automatically
         SUBMITTER_NAME: ${{ github.event.pull_request.user.login || github.actor }}
       run: |
-        python starter_code/baseline.py
+        # CHANGED: baseline.py is in the root, not in starter_code/
+        python baseline.py
 
     - name: Commit and Push Changes
       run: |
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         
-        # Pull latest changes first to avoid conflicts
+        # Sync with remote to prevent non-fast-forward errors
         git pull origin main --rebase
         
-        git add docs/data.json submissions/
+        # Added both folders just to be safe based on your structure
+        git add docs/data.json submissions/ submission/
         
-        # Only commit if there's actually a change (prevents error if score is identical)
         git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update: Leaderboard Sync [skip ci]" && git push origin main)
