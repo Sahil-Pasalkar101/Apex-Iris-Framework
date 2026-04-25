@@ -6,7 +6,6 @@ on:
   pull_request:
     types: [closed]
 
-# Permissions to fix the "403 Forbidden" red cross
 permissions:
   contents: write
   pull-requests: write
@@ -35,7 +34,7 @@ jobs:
       env:
         SUBMITTER_NAME: ${{ github.event.pull_request.user.login || github.actor }}
       run: |
-        # CHANGED: baseline.py is in the root, not in starter_code/
+        # Correct path from your file structure
         python baseline.py
 
     - name: Commit and Push Changes
@@ -43,10 +42,18 @@ jobs:
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         
-        # Sync with remote to prevent non-fast-forward errors
+        # 1. Stage everything the script just created
+        git add .
+        
+        # 2. Stash it so we can pull without errors
+        git stash
+        
+        # 3. Pull latest changes
         git pull origin main --rebase
         
-        # Added both folders just to be safe based on your structure
-        git add docs/data.json submissions/ submission/
+        # 4. Bring the script's work back
+        git stash pop || echo "No stash to pop"
         
+        # 5. Add everything again and commit
+        git add docs/data.json submissions/ submission/
         git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update: Leaderboard Sync [skip ci]" && git push origin main)
