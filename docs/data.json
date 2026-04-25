@@ -5,5 +5,12 @@
         "Accuracy": "98.5%",
         "F1-Score": "97.2",
         "Timestamp": "2026-04-14"
+    },
+    {
+        "Participant": "Satyam Anilrao Shelke",
+        "Architecture": "PyTorch RobustMLP",
+        "Accuracy": "97.8%",
+        "F1-Score": "97.8",
+        "Timestamp": "2026-04-25"
     }
 ]
