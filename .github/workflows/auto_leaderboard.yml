@@ -1,139 +1,70 @@
 name: Auto-Generate Leaderboard Submission
 
-
-
 on:
-
   push:
-
     branches:
-
       - main
-
     paths-ignore:
-
       - 'docs/data.json'
-
   pull_request:
-
     types: [closed]
-
     branches:
-
       - main
-
-
 
 permissions:
-
   contents: write
 
-
-
 jobs:
-
   build:
-
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
-
     runs-on: ubuntu-latest
 
-
-
     steps:
-
     - name: Checkout Repository
-
       uses: actions/checkout@v3
-
       with:
-
         fetch-depth: 0
-
         token: ${{ secrets.GITHUB_TOKEN }}
 
-
-
     - name: Set up Python
-
       uses: actions/setup-python@v4
-
       with:
-
         python-version: '3.10'
 
-
-
     - name: Install Dependencies
-
       run: |
-
         pip install torch pandas numpy cryptography scikit-learn
 
-
-
     - name: Run Processing Script
-
       run: |
-
         python baseline.py
-
       env:
-
         SUBMITTER_NAME: ${{ github.event.pull_request.user.login || github.actor }}
 
-
-
-  - name: Commit and Push Changes
-
+    - name: Commit and Push Changes
       run: |
-
         git config --global user.name "github-actions[bot]"
-
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
         
-
-        # 1. Add everything to ensure Git knows about new folders
-
+        # 1. Track all new files created by baseline.py
         git add .
-
         
-
-        # 2. Stash the changes to clear the index for the pull
-
+        # 2. Temporarily hide changes to allow a clean pull
         git stash
-
         
-
-        # 3. Pull latest changes from main
-
+        # 3. Update local environment with any remote changes
         git pull origin main --rebase
-
         
-
-        # 4. Bring your submission and leaderboard updates back
-
-        git stash pop || echo "No stashed changes to apply"
-
+        # 4. Bring the leaderboard data back
+        git stash pop || echo "No changes to apply"
         
-
-        # 5. Final stage and commit
-
+        # 5. Finalize the commit
         git add submissions/ docs/data.json
-
         if [ -n "$(git status --porcelain)" ]; then
-
           git commit -m "🏆 Auto-update: $SUBMITTER_NAME [skip ci]"
-
           git push origin main
-
         else
-
           echo "No changes to commit."
-
         fi
-
       env:
-
         SUBMITTER_NAME: ${{ github.event.pull_request.user.login || github.actor }}
