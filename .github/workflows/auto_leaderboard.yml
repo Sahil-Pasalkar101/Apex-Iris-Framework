@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths-ignore:
-      - 'docs/data.json' # Prevents an infinite loop of actions
+      - 'docs/data.json'
   pull_request:
     types: [closed]
     branches:
@@ -16,7 +16,6 @@ permissions:
 
 jobs:
   build:
-    # Only run if it's a direct push or a MERGED pull request
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
     runs-on: ubuntu-latest
 
@@ -40,7 +39,6 @@ jobs:
       run: |
         python baseline.py
       env:
-        # Priority: PR User > Person who merged/pushed
         SUBMITTER_NAME: ${{ github.event.pull_request.user.login || github.actor }}
 
     - name: Commit and Push Changes
@@ -48,11 +46,13 @@ jobs:
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         
-        # Pull latest changes to avoid "Rejected" errors
-        git pull origin main --rebase
-        
+        # 1. Stage changes FIRST. This fixes the "unstaged changes" rebase error.
         git add submissions/ docs/data.json
         
+        # 2. Sync with remote using rebase now that local changes are staged
+        git pull origin main --rebase
+        
+        # 3. Commit and push only if changes exist
         if [ -n "$(git status --porcelain)" ]; then
           git commit -m "🏆 Auto-update: $SUBMITTER_NAME [skip ci]"
           git push origin main
