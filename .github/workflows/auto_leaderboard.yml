@@ -34,7 +34,6 @@ jobs:
       env:
         SUBMITTER_NAME: ${{ github.event.pull_request.user.login || github.actor }}
       run: |
-        # Correct path from your file structure
         python baseline.py
 
     - name: Commit and Push Changes
@@ -42,18 +41,18 @@ jobs:
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         
-        # 1. Stage everything the script just created
+        # 1. Stage everything (this handles the deleted folder automatically)
         git add .
         
-        # 2. Stash it so we can pull without errors
+        # 2. Stash changes to sync history
         git stash
         
-        # 3. Pull latest changes
+        # 3. Pull latest from main
         git pull origin main --rebase
         
-        # 4. Bring the script's work back
-        git stash pop || echo "No stash to pop"
+        # 4. Re-apply your script's updates
+        git stash pop || echo "No changes to apply"
         
-        # 5. Add everything again and commit
-        git add docs/data.json submissions/ submission/
+        # 5. Final stage and push
+        git add docs/data.json submissions/
         git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update: Leaderboard Sync [skip ci]" && git push origin main)
