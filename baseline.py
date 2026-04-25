@@ -1,4 +1,3 @@
-# Test PR for Leaderboard Automation.
 import os
 import torch
 import pandas as pd
@@ -10,24 +9,20 @@ from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from cryptography.fernet import Fernet
+from sklearn.metrics import f1_score
 
 # ----------------------------
 # 1. Dynamic Automated Path Logic
 # ----------------------------
-# Capture the submitter name from GitHub Actions (passed as an environment variable)
-# If running locally, it defaults to your name.
+# Capture the submitter name from GitHub Actions
 submitter_raw = os.getenv('SUBMITTER_NAME', 'Satyam_Anilrao_Shelke')
-
-# Clean the name for folder compatibility (removing spaces/special chars)
 clean_name = submitter_raw.replace(" ", "_").replace(".", "_")
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# Creating the dynamic path: submissions/SUBMITTER_NAME/
-# This ensures Sir gets his own folder automatically.
 SUBMISSION_DIR = os.path.join(SCRIPT_DIR, "submissions", clean_name)
-os.makedirs(SUBMISSION_DIR, exist_ok=True)
+DATA_JSON_PATH = os.path.join(SCRIPT_DIR, "docs", "data.json")
 
+os.makedirs(SUBMISSION_DIR, exist_ok=True)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # ----------------------------
@@ -70,7 +65,7 @@ for epoch in range(100):
     optimizer.step()
 
 # ----------------------------
-# 3. Generating Predictions
+# 3. Generating Predictions & Metrics
 # ----------------------------
 model.eval()
 with torch.no_grad():
@@ -78,12 +73,15 @@ with torch.no_grad():
     probs = torch.exp(out)[:, 1].cpu().numpy()
 preds = (probs >= 0.5).astype(int)
 
+accuracy_val = np.mean(preds == y_test) * 100
+f1_val = f1_score(y_test, preds, average='weighted') * 100
+
 df_sub = pd.DataFrame({"row_index": range(len(preds)), "target": preds})
 temp_csv = os.path.join(SUBMISSION_DIR, "temp.csv")
 df_sub.to_csv(temp_csv, index=False)
 
 # ----------------------------
-# 4. Encryption (final_submissions.csv.enc)
+# 4. Encryption
 # ----------------------------
 key = Fernet.generate_key() 
 cipher_suite = Fernet(key)
@@ -92,16 +90,14 @@ with open(temp_csv, 'rb') as f:
     raw_data = f.read()
 
 encrypted_data = cipher_suite.encrypt(raw_data)
-
 with open(os.path.join(SUBMISSION_DIR, "final_submissions.csv.enc"), 'wb') as f:
     f.write(encrypted_data)
 
 os.remove(temp_csv)
 
 # ----------------------------
-# 5. Dynamic Metadata Generation
+# 5. Metadata Generation
 # ----------------------------
-# Personalize the PRN field only for you
 if "Satyam" in submitter_raw:
     display_name = "Satyam Anilrao Shelke"
     prn = "1132231165"
@@ -115,12 +111,40 @@ metadata = {
     "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     "model_type": "PyTorch RobustMLP",
     "status": "Success",
+    "accuracy": f"{accuracy_val:.2f}%",
     "submission_type": "Automated_CI_CD"
 }
 
 with open(os.path.join(SUBMISSION_DIR, "metadata.json"), 'w') as f:
     json.dump(metadata, f, indent=4)
 
-print(f"--- SUCCESS ---")
-print(f"Folder created: submissions/{clean_name}")
-print(f"Metadata generated for: {display_name}")
+# ----------------------------
+# 6. Automated Leaderboard Sync (Crucial Fix)
+# ----------------------------
+new_entry = {
+    "Participant": display_name,
+    "Architecture": "PyTorch RobustMLP",
+    "Accuracy": f"{accuracy_val:.1f}%",
+    "F1-Score": f"{f1_val:.1f}",
+    "Timestamp": datetime.now().strftime("%Y-%m-%d")
+}
+
+try:
+    if os.path.exists(DATA_JSON_PATH):
+        with open(DATA_JSON_PATH, 'r') as f:
+            leaderboard_data = json.load(f)
+    else:
+        leaderboard_data = []
+
+    # Filter out old entry for the same user to avoid duplicates
+    leaderboard_data = [e for e in leaderboard_data if e.get("Participant") != display_name]
+    leaderboard_data.append(new_entry)
+
+    with open(DATA_JSON_PATH, 'w') as f:
+        json.dump(leaderboard_data, f, indent=4)
+    print(f"Leaderboard updated for {display_name}")
+
+except Exception as e:
+    print(f"Leaderboard update failed: {e}")
+
+print(f"--- PROCESS COMPLETE ---")
