@@ -14,7 +14,6 @@ from sklearn.metrics import f1_score
 # ----------------------------
 # 1. Dynamic Automated Path Logic
 # ----------------------------
-# Capture the submitter name from GitHub Actions
 submitter_raw = os.getenv('SUBMITTER_NAME', 'Satyam_Anilrao_Shelke')
 clean_name = submitter_raw.replace(" ", "_").replace(".", "_")
 
@@ -56,6 +55,7 @@ model = RobustMLP(input_dim=4, num_classes=2).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
 # Training Loop
+print(f"--- Training Model for {submitter_raw} ---")
 for epoch in range(100):
     model.train()
     optimizer.zero_grad()
@@ -73,8 +73,17 @@ with torch.no_grad():
     probs = torch.exp(out)[:, 1].cpu().numpy()
 preds = (probs >= 0.5).astype(int)
 
+# Console Output: Predictions
+print("\n--- Target Predictions (First 20) ---")
+print(preds[:20])
+
 accuracy_val = np.mean(preds == y_test) * 100
 f1_val = f1_score(y_test, preds, average='weighted') * 100
+
+# Console Output: Metrics Summary
+print(f"\n--- Evaluation Metrics ---")
+print(f"Accuracy: {accuracy_val:.2f}%")
+print(f"F1-Score: {f1_val:.2f}")
 
 df_sub = pd.DataFrame({"row_index": range(len(preds)), "target": preds})
 temp_csv = os.path.join(SUBMISSION_DIR, "temp.csv")
@@ -119,7 +128,7 @@ with open(os.path.join(SUBMISSION_DIR, "metadata.json"), 'w') as f:
     json.dump(metadata, f, indent=4)
 
 # ----------------------------
-# 6. Automated Leaderboard Sync (Crucial Fix)
+# 6. Automated Leaderboard Sync
 # ----------------------------
 new_entry = {
     "Participant": display_name,
@@ -136,15 +145,14 @@ try:
     else:
         leaderboard_data = []
 
-    # Filter out old entry for the same user to avoid duplicates
     leaderboard_data = [e for e in leaderboard_data if e.get("Participant") != display_name]
     leaderboard_data.append(new_entry)
 
     with open(DATA_JSON_PATH, 'w') as f:
         json.dump(leaderboard_data, f, indent=4)
-    print(f"Leaderboard updated for {display_name}")
+    print(f"\nLeaderboard successfully updated in: {DATA_JSON_PATH}")
 
 except Exception as e:
-    print(f"Leaderboard update failed: {e}")
+    print(f"\nLeaderboard update failed: {e}")
 
-print(f"--- PROCESS COMPLETE ---")
+print(f"\n--- PROCESS COMPLETE ---")
