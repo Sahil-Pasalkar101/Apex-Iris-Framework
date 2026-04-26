@@ -29,7 +29,7 @@ if any(name in submitter_raw for name in BLOCK_LIST):
         # Local Safety: Only allow running if you are NOT in the root directory
         SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
         if "submissions" not in SCRIPT_DIR:
-            print(f"!!! SAFEGUARD: Blocking {submitter_raw} in ROOT directory to prevent ghost folders.")
+            print(f"!!! SAFEGUARD: Blocking {submitter_raw} in ROOT directory.")
             sys.exit(0)
 
 clean_name = submitter_raw.replace(" ", "_").replace(".", "_")
