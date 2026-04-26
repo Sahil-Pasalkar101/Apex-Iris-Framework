@@ -13,20 +13,27 @@ from cryptography.fernet import Fernet
 from sklearn.metrics import f1_score
 
 # ----------------------------
-# 1. UNIVERSAL PATH & USER LOGIC
+# 1. THE ULTIMATE SHIELD (Ghost Folder Prevention)
 # ----------------------------
-# This captures the GitHub username automatically
+# Get the name from GitHub Actions, or default to you locally
 submitter_raw = os.getenv('SUBMITTER_NAME', 'Satyam_Anilrao_Shelke')
 
-# SAFEGUARD: Prevents "ghost folders" when you run locally in the root
-BLOCK_LIST = ["Satyam_Anilrao_Shelke", "SatyamShelke2005", "Test_User"]
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# DEFINITIVE BLOCK LIST: Stops these names from ever creating folders
+BLOCK_LIST = ["SatyamShelke2005", "Satyam_Anilrao_Shelke", "Test_User"]
 
-if submitter_raw in BLOCK_LIST and not os.getenv('GITHUB_ACTIONS'):
-    print(f"!!! SAFEGUARD: Execution paused for {submitter_raw} to prevent ghost folders !!!")
-    sys.exit(0)
+if any(name in submitter_raw for name in BLOCK_LIST):
+    if os.getenv('GITHUB_ACTIONS'):
+        print(f"Skipping leaderboard generation for admin user: {submitter_raw}")
+        sys.exit(0) 
+    else:
+        # Local Safety: Only allow running if you are NOT in the root directory
+        SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+        if "submissions" not in SCRIPT_DIR:
+            print(f"!!! SAFEGUARD: Blocking {submitter_raw} in ROOT directory to prevent ghost folders.")
+            sys.exit(0)
 
 clean_name = submitter_raw.replace(" ", "_").replace(".", "_")
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SUBMISSION_DIR = os.path.join(SCRIPT_DIR, "submissions", clean_name)
 DATA_JSON_PATH = os.path.join(SCRIPT_DIR, "docs", "data.json")
 
@@ -34,7 +41,7 @@ os.makedirs(SUBMISSION_DIR, exist_ok=True)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # ----------------------------
-# 2. DATA & MODEL LOGIC (Standard Iris)
+# 2. DATA & MODEL LOGIC
 # ----------------------------
 iris = load_iris()
 X, y = iris.data, (iris.target == 1).astype(int)
@@ -63,7 +70,7 @@ class RobustMLP(torch.nn.Module):
 model = RobustMLP(input_dim=4, num_classes=2).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
-print(f"--- Running Training for {submitter_raw} ---")
+print(f"--- Training Model for {submitter_raw} ---")
 for epoch in range(100):
     model.train()
     optimizer.zero_grad()
@@ -73,7 +80,7 @@ for epoch in range(100):
     optimizer.step()
 
 # ----------------------------
-# 3. METRICS
+# 3. PREDICTIONS & ENCRYPTION
 # ----------------------------
 model.eval()
 with torch.no_grad():
@@ -88,23 +95,17 @@ df_sub = pd.DataFrame({"row_index": range(len(preds)), "target": preds})
 temp_csv = os.path.join(SUBMISSION_DIR, "temp.csv")
 df_sub.to_csv(temp_csv, index=False)
 
-# ----------------------------
-# 4. UNIVERSAL ENCRYPTION (The Fix)
-# ----------------------------
-# Try to get the Secret Key from GitHub, otherwise generate a temporary one
+# ENCRYPTION LOGIC: Uses Secret Key if available, else Fallback
 raw_key = os.getenv('ENCRYPTION_KEY')
 if raw_key:
     key = raw_key.encode()
 else:
-    # This allows the script to finish even if secrets are hidden during a PR
-    print("Notice: Using temporary encryption key (PR mode)")
+    print("Notice: Secret Key hidden. Using temporary encryption key for this run.")
     key = Fernet.generate_key()
 
 cipher_suite = Fernet(key)
-
 with open(temp_csv, 'rb') as f:
     encrypted_data = cipher_suite.encrypt(f.read())
-
 with open(os.path.join(SUBMISSION_DIR, "final_submissions.csv.enc"), 'wb') as f:
     f.write(encrypted_data)
 
@@ -112,7 +113,7 @@ if os.path.exists(temp_csv):
     os.remove(temp_csv)
 
 # ----------------------------
-# 5. METADATA & LEADERBOARD
+# 4. METADATA & LEADERBOARD
 # ----------------------------
 prn = "1132231165" if "Satyam" in submitter_raw else "EXTERNAL_CONTRIBUTOR"
 
@@ -142,13 +143,13 @@ try:
     else:
         data = []
 
-    # Overwrite old scores for the same user
+    # Scrub existing entry to avoid duplicates
     data = [e for e in data if e.get("Participant") != submitter_raw]
     data.append(new_entry)
 
     with open(DATA_JSON_PATH, 'w') as f:
         json.dump(data, f, indent=4)
-    print(f"Leaderboard updated for {submitter_raw}")
+    print(f"Leaderboard Sync Complete for: {submitter_raw}")
 
 except Exception as e:
-    print(f"Leaderboard update failed: {e}")
+    print(f"Leaderboard Sync Failed: {e}")
