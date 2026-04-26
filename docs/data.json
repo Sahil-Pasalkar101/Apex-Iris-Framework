@@ -6,6 +6,7 @@
         "F1-Score": "97.2",
         "Timestamp": "2026-04-14"
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
     },
     {
@@ -14,6 +15,8 @@
         "Accuracy": "86.8%",
         "F1-Score": "86.8",
         "Timestamp": "2026-04-25"
+=======
+>>>>>>> Stashed changes
     },
     {
         "Participant": "Satyam Anilrao Shelke",
@@ -21,6 +24,9 @@
         "Accuracy": "100.0%",
         "F1-Score": "100.0",
         "Timestamp": "2026-04-26"
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     }
 ]
