@@ -3,8 +3,8 @@ name: Apex Leaderboard Automation
 on:
   push:
     branches: [ main ]
-  pull_request:
-    types: [closed]
+  # This ensures that when you merge a PR, it triggers as a 'push' to main
+  workflow_dispatch: # Allows you to run it manually if needed
 
 permissions:
   contents: write
@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build:
-    if: github.event.pull_request.merged == true || github.event_name == 'push'
+    # This job now runs on every push to main (including merges)
     runs-on: ubuntu-latest
 
     steps:
@@ -32,15 +32,18 @@ jobs:
 
     - name: Run Processing Script
       env:
-        SUBMITTER_NAME: ${{ github.event.pull_request.user.login || github.actor }}
+        # CRITICAL: This passes your secret key into baseline.py
+        ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+        # Logic: If it's a push from a merge, try to find the author. 
+        # Fallback to the actor (you) if it's a direct push.
+        SUBMITTER_NAME: ${{ github.event.commits[0].author.username || github.actor }}
       run: |
         # --- SHIELD: Physically delete ghost folders in the runner ---
-        # This makes it impossible for baseline.py to "see" them
         rm -rf submissions/Satyam_Anilrao_Shelke/
         rm -rf submissions/SatyamShelke2005/
         rm -rf submissions/Test_User_SatyamShelke2005/
         
-        # Now run the script (ensure you've updated baseline.py with the filter too!)
+        # Run the updated baseline.py
         python baseline.py
 
     - name: Commit and Push Changes
@@ -48,11 +51,11 @@ jobs:
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         
-        # Add all changes, including the deletions we performed above
+        # Add all changes (metadata, .enc files, and data.json)
         git add -A
         
-        # Sync with the remote. If there's a conflict, the runner's version (the clean one) wins.
+        # Pull to avoid conflicts, then push
         git pull origin main --strategy-option=theirs
         
-        # Final check: Only commit if there is actually a difference
+        # Only commit if changes exist. [skip ci] prevents infinite loops.
         git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update: Leaderboard Sync [skip ci]" && git push origin main)
