@@ -1,4 +1,5 @@
 import os
+import sys
 import torch
 import pandas as pd
 import torch.nn.functional as F
@@ -12,21 +13,20 @@ from cryptography.fernet import Fernet
 from sklearn.metrics import f1_score
 
 # ----------------------------
-# 1. Dynamic Automated Path Logic & Ghost Filtering
+# 1. UNIVERSAL PATH & USER LOGIC
 # ----------------------------
-# These are the names we want to BAN from the leaderboard forever
-BLOCK_LIST = ["Satyam_Anilrao_Shelke", "SatyamShelke2005", "Test_User"]
-
+# This captures the GitHub username automatically
 submitter_raw = os.getenv('SUBMITTER_NAME', 'Satyam_Anilrao_Shelke')
 
-# TERMINATE immediately if the current run is for a blocked user
-if any(blocked_name in submitter_raw for blocked_name in BLOCK_LIST):
-    print(f"!!! CRITICAL: Blocking execution for {submitter_raw} to prevent ghost folders !!!")
-    exit(0)
+# SAFEGUARD: Prevents "ghost folders" when you run locally in the root
+BLOCK_LIST = ["Satyam_Anilrao_Shelke", "SatyamShelke2005", "Test_User"]
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+if submitter_raw in BLOCK_LIST and not os.getenv('GITHUB_ACTIONS'):
+    print(f"!!! SAFEGUARD: Execution paused for {submitter_raw} to prevent ghost folders !!!")
+    sys.exit(0)
 
 clean_name = submitter_raw.replace(" ", "_").replace(".", "_")
-
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SUBMISSION_DIR = os.path.join(SCRIPT_DIR, "submissions", clean_name)
 DATA_JSON_PATH = os.path.join(SCRIPT_DIR, "docs", "data.json")
 
@@ -34,7 +34,7 @@ os.makedirs(SUBMISSION_DIR, exist_ok=True)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # ----------------------------
-# 2. Data & Model Logic
+# 2. DATA & MODEL LOGIC (Standard Iris)
 # ----------------------------
 iris = load_iris()
 X, y = iris.data, (iris.target == 1).astype(int)
@@ -63,7 +63,7 @@ class RobustMLP(torch.nn.Module):
 model = RobustMLP(input_dim=4, num_classes=2).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
-print(f"--- Training Model for {submitter_raw} ---")
+print(f"--- Running Training for {submitter_raw} ---")
 for epoch in range(100):
     model.train()
     optimizer.zero_grad()
@@ -73,7 +73,7 @@ for epoch in range(100):
     optimizer.step()
 
 # ----------------------------
-# 3. Generating Predictions & Metrics
+# 3. METRICS
 # ----------------------------
 model.eval()
 with torch.no_grad():
@@ -89,15 +89,22 @@ temp_csv = os.path.join(SUBMISSION_DIR, "temp.csv")
 df_sub.to_csv(temp_csv, index=False)
 
 # ----------------------------
-# 4. Encryption
+# 4. UNIVERSAL ENCRYPTION (The Fix)
 # ----------------------------
-key = Fernet.generate_key() 
+# Try to get the Secret Key from GitHub, otherwise generate a temporary one
+raw_key = os.getenv('ENCRYPTION_KEY')
+if raw_key:
+    key = raw_key.encode()
+else:
+    # This allows the script to finish even if secrets are hidden during a PR
+    print("Notice: Using temporary encryption key (PR mode)")
+    key = Fernet.generate_key()
+
 cipher_suite = Fernet(key)
 
 with open(temp_csv, 'rb') as f:
-    raw_data = f.read()
+    encrypted_data = cipher_suite.encrypt(f.read())
 
-encrypted_data = cipher_suite.encrypt(raw_data)
 with open(os.path.join(SUBMISSION_DIR, "final_submissions.csv.enc"), 'wb') as f:
     f.write(encrypted_data)
 
@@ -105,35 +112,23 @@ if os.path.exists(temp_csv):
     os.remove(temp_csv)
 
 # ----------------------------
-# 5. Metadata Generation (DYNAMIC VERSION)
+# 5. METADATA & LEADERBOARD
 # ----------------------------
-# This displays the GitHub username of whoever pushes/merges
-display_name = submitter_raw 
-
-# Assign your PRN only to you (based on username variations)
-if "Satyam" in submitter_raw or "Shelke" in submitter_raw:
-    prn = "1132231165"
-else:
-    prn = "EXTERNAL_CONTRIBUTOR"
+prn = "1132231165" if "Satyam" in submitter_raw else "EXTERNAL_CONTRIBUTOR"
 
 metadata = {
-    "name": display_name,
+    "name": submitter_raw,
     "PRN": prn,
     "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-    "model_type": "PyTorch RobustMLP",
-    "status": "Success",
     "accuracy": f"{accuracy_val:.2f}%",
-    "submission_type": "Automated_CI_CD"
+    "status": "Success"
 }
 
 with open(os.path.join(SUBMISSION_DIR, "metadata.json"), 'w') as f:
     json.dump(metadata, f, indent=4)
 
-# ----------------------------
-# 6. Automated Leaderboard Sync & Scrubbing
-# ----------------------------
 new_entry = {
-    "Participant": display_name,
+    "Participant": submitter_raw,
     "Architecture": "PyTorch RobustMLP",
     "Accuracy": f"{accuracy_val:.1f}%",
     "F1-Score": f"{f1_val:.1f}",
@@ -143,30 +138,17 @@ new_entry = {
 try:
     if os.path.exists(DATA_JSON_PATH):
         with open(DATA_JSON_PATH, 'r') as f:
-            leaderboard_data = json.load(f)
+            data = json.load(f)
     else:
-        leaderboard_data = []
+        data = []
 
-    # SCRUBBING: Remove old "Satyam Shelke" entry and any existing entry for this user
-    # to allow the new score to overwrite the old one.
-    NAMES_TO_SCRUB = ["Satyam Anilrao Shelke", "Satyam Shelke", "Test_User"]
-    
-    leaderboard_data = [
-        e for e in leaderboard_data 
-        if e.get("Participant") not in NAMES_TO_SCRUB 
-        and e.get("Participant") != display_name 
-    ]
-    
-    # Append the new clean entry
-    leaderboard_data.append(new_entry)
+    # Overwrite old scores for the same user
+    data = [e for e in data if e.get("Participant") != submitter_raw]
+    data.append(new_entry)
 
     with open(DATA_JSON_PATH, 'w') as f:
-        json.dump(leaderboard_data, f, indent=4)
-    print(f"\nLeaderboard successfully updated for: {display_name}")
+        json.dump(data, f, indent=4)
+    print(f"Leaderboard updated for {submitter_raw}")
 
 except Exception as e:
-    print(f"\nLeaderboard update failed: {e}")
-
-print(f"\n--- PROCESS COMPLETE ---")
-
-#Code end
+    print(f"Leaderboard update failed: {e}")
