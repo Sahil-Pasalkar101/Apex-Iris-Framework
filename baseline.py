@@ -22,7 +22,6 @@ submitter_raw = os.getenv('SUBMITTER_NAME', 'Satyam_Anilrao_Shelke')
 # TERMINATE immediately if the current run is for a blocked user
 if any(blocked_name in submitter_raw for blocked_name in BLOCK_LIST):
     print(f"!!! CRITICAL: Blocking execution for {submitter_raw} to prevent ghost folders !!!")
-    # We exit with 0 so the GitHub Action doesn't "fail" (turn red), it just stops silently.
     exit(0)
 
 clean_name = submitter_raw.replace(" ", "_").replace(".", "_")
@@ -31,7 +30,6 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SUBMISSION_DIR = os.path.join(SCRIPT_DIR, "submissions", clean_name)
 DATA_JSON_PATH = os.path.join(SCRIPT_DIR, "docs", "data.json")
 
-# Only create directory for valid participants
 os.makedirs(SUBMISSION_DIR, exist_ok=True)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -107,15 +105,16 @@ if os.path.exists(temp_csv):
     os.remove(temp_csv)
 
 # ----------------------------
-# 5. Metadata Generation
+# 5. Metadata Generation (DYNAMIC VERSION)
 # ----------------------------
-# Defaulting to GUEST if it's not a known variation of your name
-if "Satyam" in submitter_raw:
-    display_name = "Satyam Shelke"
+# This displays the GitHub username of whoever pushes/merges
+display_name = submitter_raw 
+
+# Assign your PRN only to you (based on username variations)
+if "Satyam" in submitter_raw or "Shelke" in submitter_raw:
     prn = "1132231165"
 else:
-    display_name = submitter_raw
-    prn = "GUEST_SUBMISSION"
+    prn = "EXTERNAL_CONTRIBUTOR"
 
 metadata = {
     "name": display_name,
@@ -148,22 +147,22 @@ try:
     else:
         leaderboard_data = []
 
-    # SCRUBBING PHASE: Remove any ghosts if they somehow got back in
-    # This matches the names that keep appearing in your data.json
-    NAMES_TO_SCRUB = ["Satyam Anilrao Shelke", "SatyamShelke2005", "Test_User"]
+    # SCRUBBING: Remove old "Satyam Shelke" entry and any existing entry for this user
+    # to allow the new score to overwrite the old one.
+    NAMES_TO_SCRUB = ["Satyam Anilrao Shelke", "Satyam Shelke", "Test_User"]
     
     leaderboard_data = [
         e for e in leaderboard_data 
         if e.get("Participant") not in NAMES_TO_SCRUB 
-        and e.get("Participant") != display_name # Remove old entry of current user to update
+        and e.get("Participant") != display_name 
     ]
     
-    # Finally, append the current valid entry
+    # Append the new clean entry
     leaderboard_data.append(new_entry)
 
     with open(DATA_JSON_PATH, 'w') as f:
         json.dump(leaderboard_data, f, indent=4)
-    print(f"\nLeaderboard successfully updated and scrubbed.")
+    print(f"\nLeaderboard successfully updated for: {display_name}")
 
 except Exception as e:
     print(f"\nLeaderboard update failed: {e}")
