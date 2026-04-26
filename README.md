@@ -23,7 +23,6 @@
 | :--- | :--- | :--- |
 | **Satyam Anilrao Shelke** | 1132231165 | Lead Developer & DevOps Automation |
 | **Harsha Purohit** | 1132231017 | Research & Model Robustness |
-.............
 
 ---
 
