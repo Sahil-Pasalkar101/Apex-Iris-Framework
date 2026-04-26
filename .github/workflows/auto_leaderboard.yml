@@ -7,12 +7,10 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v3
@@ -25,20 +23,17 @@ jobs:
         python-version: '3.9'
 
     - name: Install Dependencies
-      run: |
-        pip install torch pandas scikit-learn numpy cryptography
+      run: pip install torch pandas scikit-learn numpy cryptography
 
     - name: Run Processing Script
       env:
-        # Passes your secret key to enable .enc file generation
         ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
-        # Identify the contributor from the commit
+        # Logic: Find the person who actually made the commit
         SUBMITTER_NAME: ${{ github.event.commits[0].author.username || github.actor }}
       run: |
-        # Force remove ghost folders in the cloud runner
+        # Wipe unwanted ghost folders from the runner's workspace
         rm -rf submissions/SatyamShelke2005/
         rm -rf submissions/Satyam_Anilrao_Shelke/
-        rm -rf submissions/Test_User_SatyamShelke2005/
         
         python baseline.py
 
@@ -47,9 +42,12 @@ jobs:
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         
-        git add -A
+        # KEY CHANGE: This ensures new subfolders and .enc files are included
+        git add submissions/
+        git add docs/data.json
         
-        # Use 'theirs' strategy to automatically fix merge conflicts
+        # Resolve any conflicts by taking the runner's version
         git pull origin main --strategy-option=theirs
         
+        # Only push if there are actual changes
         git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update: Leaderboard Sync [skip ci]" && git push origin main)
