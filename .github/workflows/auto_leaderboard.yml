@@ -30,16 +30,16 @@ jobs:
 
     - name: Run Processing Script
       env:
+        # Passes your secret key to enable .enc file generation
         ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
-        # Identify the true author of the code
+        # Identify the contributor from the commit
         SUBMITTER_NAME: ${{ github.event.commits[0].author.username || github.actor }}
       run: |
-        # Physically wipe the unwanted folders from the temporary runner
+        # Force remove ghost folders in the cloud runner
         rm -rf submissions/SatyamShelke2005/
         rm -rf submissions/Satyam_Anilrao_Shelke/
         rm -rf submissions/Test_User_SatyamShelke2005/
         
-        # Run the shielded script
         python baseline.py
 
     - name: Commit and Push Changes
@@ -49,8 +49,7 @@ jobs:
         
         git add -A
         
-        # Sync with remote
+        # Use 'theirs' strategy to automatically fix merge conflicts
         git pull origin main --strategy-option=theirs
         
-        # Final check: Commit only if changes exist
         git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update: Leaderboard Sync [skip ci]" && git push origin main)
