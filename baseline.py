@@ -150,3 +150,5 @@ try:
     with open(DATA_JSON_PATH, 'w') as f: json.dump(data, f, indent=4)
 except Exception as e:
     print(f"Leaderboard sync failed: {e}")
+
+#Code End
