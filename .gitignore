@@ -1,14 +1,29 @@
 # Updated by Satyam
-__pycache__
+# --- Existing Basics ---
+__pycache__/
 *.pyc
 .DS_Store
-
 .ipynb_checkpoints/
-submissions/baseline_model.csv
-leaderboard/test_labels_hidden.csv
-
 .venv
-private_key.pem
 .env
-*.csv
+
+# --- Data Science Specific (The Missing Stuff) ---
+# Ignore large PyTorch/ML model weights
+*.pt
+*.pth
+*.pkl
+
+# Ignore local notebook checkpoints deeper in folders
+**/.ipynb_checkpoints/
+
+# Security (Already have private_key.pem, but let's be safe)
+*.key
+*.pem
+*.enc
+
+# --- Optional Data Control ---
+# Only keep this if you DON'T want to upload any datasets
+# *.csv
+# *.json
+# (But DON'T ignore docs/data.json since your leaderboard needs it!)
 

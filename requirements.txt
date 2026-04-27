@@ -1,7 +1,5 @@
 torch
-torch-geometric
-networkx
 numpy
 pandas
 scikit-learn
-python-dotenv
+cryptography

@@ -1,96 +1,65 @@
 import os
-import torch
-import pandas as pd
-import torch.nn.functional as F
 import numpy as np
+import pandas as pd
+from datetime import datetime
 from sklearn.datasets import load_iris
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 # ----------------------------
-# Paths
+# 1. SETUP & DATA
 # ----------------------------
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-REPO_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
-SUBMISSIONS_DIR = os.path.join(REPO_ROOT, "submissions")
-os.makedirs(SUBMISSIONS_DIR, exist_ok=True)
+# Use the environment variable for the PR folder name
+submitter_name = os.getenv('SUBMITTER_NAME', 'Siya_Simple_Model')
+SUBMISSION_DIR = f"submissions/{submitter_name.replace(' ', '_')}"
+os.makedirs(SUBMISSION_DIR, exist_ok=True)
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# Load Iris and binary-target (Versicolor)
+X, y = load_iris(return_X_y=True)
+y = (y == 1).astype(float).reshape(-1, 1)
 
-# ----------------------------
-# Load Iris dataset (The Teacher's Request)
-# ----------------------------
-iris = load_iris()
-X = iris.data
-y = (iris.target == 1).astype(int) # Binary: 1 vs 0
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-
+# Scaling helps simple models converge faster
 scaler = StandardScaler()
 X_train = scaler.fit_transform(X_train)
 X_test = scaler.transform(X_test)
 
-X_train_t = torch.FloatTensor(X_train).to(device)
-y_train_t = torch.LongTensor(y_train).to(device)
-X_test_t = torch.FloatTensor(X_test).to(device)
-
 # ----------------------------
-# MLP Model (Tabular Data)
+# 2. SIMPLE NUMPY MODEL
 # ----------------------------
-class RobustMLP(torch.nn.Module):
-    def __init__(self, input_dim, num_classes):
-        super().__init__()
-        self.fc1 = torch.nn.Linear(input_dim, 64)
-        self.fc2 = torch.nn.Linear(64, 32)
-        self.out = torch.nn.Linear(32, num_classes)
+# Initialize weights (4 features, 1 output)
+weights = np.zeros((4, 1))
+bias = 0
+lr = 0.1
 
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        return F.log_softmax(self.out(x), dim=1)
-
-model = RobustMLP(input_dim=4, num_classes=2).to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-
-# ----------------------------
-# Training (Note the New Label)
-# ----------------------------
-print("--- STARTING IRIS DATA TRAINING ---")
-
-for epoch in range(100):
-    model.train()
-    optimizer.zero_grad()
-    out = model(X_train_t)
-    loss = F.nll_loss(out, y_train_t)
-    loss.backward()
-    optimizer.step()
+# Training loop
+for _ in range(100):
+    # Predict (Forward)
+    z = np.dot(X_train, weights) + bias
+    preds = 1 / (1 + np.exp(-z))
     
-    if (epoch + 1) % 20 == 0:
-        print(f"Iris Epoch {epoch+1} | Loss {loss.item():.4f}")
+    # Calculate error and update (Backward)
+    error = preds - y_train
+    weights -= lr * (np.dot(X_train.T, error) / len(y_train))
+    bias -= lr * (np.sum(error) / len(y_train))
 
 # ----------------------------
-# Diverse Prediction Logic
+# 3. PREDICTIONS & CSV EXPORT
 # ----------------------------
-def get_diverse_preds(model, data_t, target_percent=40):
-    model.eval()
-    with torch.no_grad():
-        out = model(data_t)
-        probs = torch.exp(out)[:, 1].cpu().numpy()
-    
-    threshold = np.percentile(probs, 100 - target_percent)
-    return (probs >= threshold).astype(int).tolist()
+# Get final predictions on test set
+test_z = np.dot(X_test, weights) + bias
+final_probs = 1 / (1 + np.exp(-test_z))
+final_preds = (final_probs >= 0.5).astype(int).flatten()
 
-print("Generating IRIS predictions...")
-ideal_preds = get_diverse_preds(model, X_test_t, target_percent=35)
+# Create the CSV file for the PR
+output_path = os.path.join(SUBMISSION_DIR, "final_submissions.csv")
+df_output = pd.DataFrame({
+    "row_index": range(len(final_preds)),
+    "target": final_preds
+})
 
-# ----------------------------
-# Save Submissions
-# ----------------------------
-pd.DataFrame({"row_index": range(len(ideal_preds)), "target": ideal_preds}).to_csv(
-    os.path.join(SUBMISSIONS_DIR, "ideal_submission.csv"), index=False)
-pd.DataFrame({"row_index": range(len(ideal_preds)), "target": ideal_preds}).to_csv(
-    os.path.join(SUBMISSIONS_DIR, "perturbed_submission.csv"), index=False)
+df_output.to_csv(output_path, index=False)
 
-print("-" * 30)
-print("SUCCESS: Iris files generated with 1s and 0s.")
-print("-" * 30)
+print(f"Model trained. Predictions saved to: {output_path}")
+print("You can now stage, commit, and push this folder to create your PR.")

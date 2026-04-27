@@ -1,0 +1,53 @@
+name: Apex Leaderboard Automation
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0 
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install Dependencies
+      run: pip install torch pandas scikit-learn numpy cryptography
+
+    - name: Run Processing Script
+      env:
+        ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+        # Logic: Find the person who actually made the commit
+        SUBMITTER_NAME: ${{ github.event.commits[0].author.username || github.actor }}
+      run: |
+        # Wipe unwanted ghost folders from the runner's workspace
+        rm -rf submissions/SatyamShelke2005/
+        rm -rf submissions/Satyam_Anilrao_Shelke/
+        
+        python baseline.py
+
+    - name: Commit and Push Changes
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        
+        # KEY CHANGE: This ensures new subfolders and .enc files are included
+        git add submissions/
+        git add docs/data.json
+        
+        # Resolve any conflicts by taking the runner's version
+        git pull origin main --strategy-option=theirs
+        
+        # Only push if there are actual changes
+        git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update: Leaderboard Sync [skip ci]" && git push origin main)
