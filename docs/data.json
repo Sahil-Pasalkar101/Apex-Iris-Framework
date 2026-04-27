@@ -19,5 +19,12 @@
         "Accuracy": "95.6%",
         "F1-Score": "95.6",
         "Timestamp": "2026-04-26"
+    },
+    {
+        "Participant": "ChaitanyaMeher",
+        "Architecture": "PyTorch RobustMLP",
+        "Accuracy": "91.1%",
+        "F1-Score": "91.1",
+        "Timestamp": "2026-04-27"
     }
 ]
