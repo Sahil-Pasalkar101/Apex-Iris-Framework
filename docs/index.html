@@ -137,7 +137,6 @@
             width: 90%;
         }
 
-        /* Improved Submit Button Sync & Hover Visibility */
         .submit-btn {
             display: block;
             padding: 12px;
@@ -156,7 +155,7 @@
 
         .submit-btn:hover {
             background: var(--accent) !important;
-            color: #0d1117 !important; /* Forces dark text on light background */
+            color: #0d1117 !important;
             box-shadow: 0 0 25px var(--accent) !important;
             transform: translateY(-2px);
         }
@@ -254,7 +253,7 @@
                     labels: ['Acc', 'Prec', 'Rec', 'Rob', 'Lat'],
                     datasets: [{
                         label: 'Core Metrics',
-                        data: [parseFloat(topModel.accuracy), 88, 72, 65, 90], 
+                        data: [parseFloat(topModel.Accuracy), 88, 72, 65, 90], 
                         backgroundColor: 'rgba(255, 255, 255, 0.02)',
                         borderColor: color,
                         pointBackgroundColor: color,
@@ -288,22 +287,26 @@
             try {
                 const response = await fetch('./data.json');
                 globalData = await response.json();
-                globalData.sort((a, b) => parseFloat(b.accuracy) - parseFloat(a.accuracy));
+                
+                // Fixed key names to match baseline.py (Accuracy)
+                globalData.sort((a, b) => parseFloat(b.Accuracy) - parseFloat(a.Accuracy));
 
-                document.getElementById('top-accuracy').innerText = globalData[0].accuracy + '%';
+                document.getElementById('top-accuracy').innerText = globalData[0].Accuracy;
                 document.getElementById('user-count').innerText = globalData.length;
                 
                 tableBody.innerHTML = '';
                 globalData.forEach((entry, index) => {
                     const row = document.createElement('tr');
                     let rankDisplay = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`;
+                    
+                    // Fixed keys: Participant, Architecture, Accuracy, F1-Score, Timestamp
                     row.innerHTML = `
                         <td style="${index < 3 ? 'font-size: 1.2rem;' : 'color: #8b949e;'}">${rankDisplay}</td>
-                        <td style="font-weight:600;">${entry.name}</td>
-                        <td><span class="badge-pro">${entry.tech || 'CNN/Linear'}</span></td>
-                        <td class="accuracy-highlight">${entry.accuracy}%</td>
-                        <td style="color: #8b949e;">${entry.f1 || '0.92'}</td>
-                        <td style="color: #8b949e; font-size: 0.75rem;">${entry.date}</td>
+                        <td style="font-weight:600;">${entry.Participant}</td>
+                        <td><span class="badge-pro">${entry.Architecture || 'Neural-X'}</span></td>
+                        <td class="accuracy-highlight">${entry.Accuracy}</td>
+                        <td style="color: #8b949e;">${entry['F1-Score'] || '--'}</td>
+                        <td style="color: #8b949e; font-size: 0.75rem;">${entry.Timestamp}</td>
                     `;
                     tableBody.appendChild(row);
                 });
@@ -315,28 +318,23 @@
             }
         }
 
-        // MASTER SYNC LOOP: Updates Chart AND Button in real-time
         setInterval(() => {
             const currentAccent = getCSSVariable('--accent');
             const currentGlow = getCSSVariable('--glow');
             
-            // Sync Chart
             if (chartInstance) {
                 chartInstance.data.datasets[0].borderColor = currentAccent;
                 chartInstance.data.datasets[0].pointBackgroundColor = currentAccent;
                 chartInstance.update('none'); 
             }
 
-            // Sync Submit Button Shadow & Border
             const submitBtn = document.getElementById('sync-submit-btn');
             if(submitBtn) {
-                // We only force color/border when NOT hovered to allow CSS :hover !important to take over
                 if (submitBtn.parentElement.querySelector(':hover') !== submitBtn) {
                     submitBtn.style.borderColor = currentAccent;
                     submitBtn.style.color = currentAccent;
                     submitBtn.style.boxShadow = `0 0 10px ${currentGlow}`;
                 } else {
-                    // While hovered, we keep the border synced but let CSS handle background and text
                     submitBtn.style.borderColor = currentAccent;
                 }
             }
